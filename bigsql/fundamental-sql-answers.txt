@@ -1,12 +1,8 @@
 List the commands for adding, updating, and deleting data
 
-  CREATE TABLE (table name) ((column name) (datatype));
-  INSERT INTO (table name) (column names) VALUES (values in column order);
-  UPDATE (table name) SET (column name = value) WHERE (column name =,<,> value);
-  DELETE FROM (table name) WHERE (column name =,<,> value);
-  ALTER TABLE (table name) ADD COLUMN (column name) (datatype) SET DEFAULT (something);
-  ALTER TABLE (table name) DROP COLUMN (column name);
-  DROP TABLE (table name);
+INSERT INTO will add data, 
+UPDATE will update data and 
+DELETE FROM will delete data
 
 Explain the structure for each type of command.
 
@@ -64,31 +60,42 @@ The wedding is over and we do not need to keep this information, so write a comm
 
 Write a command to make a new table to hold the books in a library with the columns ISBN, title, author, genre, publishing date, number of copies, and available copies.
 
-  CREATE TABLE books (
-    ISBN varchar(10),
-    title varchar,
-    author varchar,
-    genre varchar,
-    publishing-date date,
-    number-of-copies integer,
-    available-copies integer,
-  );
+ CREATE TABLE library (
+    isbn integer, 
+    title text, 
+    author text, 
+    genre text, 
+    publishing_date date, 
+    copies integer,  
+    available_copies integer
+ );
 
 Find three books and add their information to the table.
 
-  INSERT INTO books (ISBN, title, author, genre, publishing-date, number-of-copies, available-copies)
-  VALUES
-  (0-7475-3269-9, 'Harry Potter and the Philosopher's Stone', 'J.K. Rowling', 'Fantasy', 'June 26, 1997', 100, 50),
-  (978-0307887, 'Ready Player One', 'Ernest Cline', 'Adventure', 'August 16, 2011', 50, 25),
-  (0544174224, 'The Hobbit: Illustrated Edition', 'J.R.R. Tolkien', 'Fantasy', 'October 1, 2013', 75, 25);
+  INSERT INTO library (isbn, 
+                      title, 
+                      author, 
+                      genre, 
+                      publishing_date, 
+                      copies, 
+                      available_copies)
+    VALUES
+    (0446357170, 'Chances', 'Jackie Collins', 
+      'contemporary fiction', 1991-08-01, 30870, 6845),
+    (0671808826, 'The Lonely Lady', 'Harold Robbins', 
+      'contemporary fiction', 1977-03-01, 308170, 45),
+    (0312987013, 'Minion (Vampire Huntress Legends)', 'L. A. Banks', 
+      'romance', 2004-04-29, 9215, 997);
 
 Say that someone has just checked out one of the books. Change the available copies column to 1 less.
 
-  UPDATE books SET available-copies=24 WHERE title='Ready Player One';
+  UPDATE library SET available_copies=996 
+      WHERE isbn=0312987013;
 
 Now one of the books has been added to the banned books list. Remove it from the table.
 
-  DELETE FROM books WHERE title='The Hobbit: Illustrated Edition';
+  DELETE FROM library where isbn=0671808826;
+
 
 Write a command to make a new table to hold spacecrafts. Information should include id, name, year launched, country of origin, a brief description of the mission, orbiting body, if it is currently operating, and approximate miles from Earth.
 
