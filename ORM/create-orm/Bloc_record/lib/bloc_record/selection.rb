@@ -33,6 +33,33 @@ module Selection
     rows_to_array(rows)
   end
 
+  def find_each(options = {})
+    start = options.start || 0
+    batch_size = options.batch_size || 0
+
+    row = connection.get_first_row <<-SQL
+      SELECT #{columns.join ","} FROM #{table}
+      LIMIT #{batch_size} #{start};
+    SQL
+
+    row.each do |row|
+      yield(rows_to_array(row))
+    end
+  end
+
+  def find_in_batches(options = {})
+    start = options.start || 0
+    batch_size = options.batch_size || 0
+
+    rows = connection.execute <<-SQL
+      SELECT #{columns.join ","} FROM #{table}
+      LIMIT #{batch_size} #{start};
+    SQL
+
+    arr = rows_to_array(rows)
+    yield(arr)
+  end
+
   def take(num=1)
     if num > 1
       rows = connection.execute <<-SQL
