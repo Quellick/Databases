@@ -11,11 +11,7 @@ module Selection
     if ids.length == 1
       find_one(ids.first)
     else
-      ids.each do |id|
-        unless id.is_a?(Numeric) && id >= 1
-          raise ArgumentError.new("ID must be an integer greater than or equal to 1")
-        end
-      end
+      ids.each { |id| validatePK(id) }
 
       rows = connection.execute(<<-SQL)
         SELECT #{columns.join ","} FROM #{table}
@@ -27,9 +23,7 @@ module Selection
   end
 
   def find_one(id)
-    unless id.is_a?(Numeric) && id >= 1
-      raise ArgumentError.new("ID must be an integer greater than or equal to 1")
-    end
+    validatePK(id)  
 
     row = connection.get_first_row(<<-SQL)
       SELECT #{columns.join ","} FROM #{table}
