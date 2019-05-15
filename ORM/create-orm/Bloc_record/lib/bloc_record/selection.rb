@@ -1,12 +1,23 @@
 require 'sqlite3'
 
 module Selection
+  def validatePK(id)
+    unless id.is_a?(Numeric) && id >= 1
+      raise ArgumentError.new("ID must be an integer greater than or equal to 1")
+    end 
+  end
+  
   def find(*ids)
-
     if ids.length == 1
       find_one(ids.first)
     else
-      rows = connection.execute <<-SQL
+      ids.each do |id|
+        unless id.is_a?(Numeric) && id >= 1
+          raise ArgumentError.new("ID must be an integer greater than or equal to 1")
+        end
+      end
+
+      rows = connection.execute(<<-SQL)
         SELECT #{columns.join ","} FROM #{table}
         WHERE id IN (#{ids.join(",")});
       SQL
@@ -16,7 +27,11 @@ module Selection
   end
 
   def find_one(id)
-    row = connection.get_first_row <<-SQL
+    unless id.is_a?(Numeric) && id >= 1
+      raise ArgumentError.new("ID must be an integer greater than or equal to 1")
+    end
+
+    row = connection.get_first_row(<<-SQL)
       SELECT #{columns.join ","} FROM #{table}
       WHERE id = #{id};
     SQL
@@ -25,42 +40,47 @@ module Selection
   end
 
   def find_by(attribute, value)
-    rows = connection.execute <<-SQL
-      SELECT #{columns.join ","} FROM #{table}
+    if attribute.is_a?(Symbol)
+      attribute = attribute.to_s
+    end
+
+    unless attribute.is_a?(String)
+      raise ArgumentError.new("Input value must be a string")
+    end
+
+    row = connection.get_first_row(<<-SQL)
+      SELECT #{columns.join(",")} FROM #{table}
       WHERE #{attribute} = #{BlocRecord::Utility.sql_strings(value)};
     SQL
 
-    rows_to_array(rows)
+    init_object_from_row(row)
   end
 
-  def find_each(options = {})
-    start = options.start || 0
-    batch_size = options.batch_size || 0
-
-    row = connection.get_first_row <<-SQL
-      SELECT #{columns.join ","} FROM #{table}
-      LIMIT #{batch_size} #{start};
+  def find_each(options)
+    rows = connection.execute <<-SQL
+      SELECT #{column.join(",")} FROM #{table}
+      LIMIT #{options[:batch_size]} OFFSET #{options[:start]} 
     SQL
 
-    row.each do |row|
-      yield(rows_to_array(row))
+    for row in rows_to_array(rows)
+      yield row
     end
   end
 
-  def find_in_batches(options = {})
-    start = options.start || 0
-    batch_size = options.batch_size || 0
-
+  def find_in_batches(options)
     rows = connection.execute <<-SQL
-      SELECT #{columns.join ","} FROM #{table}
-      LIMIT #{batch_size} #{start};
+      SELECT #{columns.join(",")} FROM #{table}
+      LIMIT #{options[:batch_size]} OFFSET #{options[:start]} 
     SQL
 
-    arr = rows_to_array(rows)
-    yield(arr)
+    yield rows_to_array(rows)
   end
 
   def take(num=1)
+    unless num.is_a?(Numeric) && num >= 1
+      raise ArgumentError.new("ID must be an integer greater than or equal to 1")
+    end
+
     if num > 1
       rows = connection.execute <<-SQL
         SELECT #{columns.join ","} FROM #{table}
@@ -72,7 +92,7 @@ module Selection
     else
       take_one
     end
-  end  
+  end
 
   def take_one
     row = connection.get_first_row <<-SQL
@@ -87,7 +107,8 @@ module Selection
   def first
     row = connection.get_first_row <<-SQL
       SELECT #{columns.join ","} FROM #{table}
-      ORDER BY id ASC LIMIT 1;
+      ORDER BY id
+      ASC LIMIT 1;
     SQL
 
     init_object_from_row(row)
@@ -96,7 +117,8 @@ module Selection
   def last
     row = connection.get_first_row <<-SQL
       SELECT #{columns.join ","} FROM #{table}
-      ORDER BY id DESC LIMIT 1;
+      ORDER BY id
+      DESC LIMIT 1;
     SQL
 
     init_object_from_row(row)
@@ -121,7 +143,7 @@ module Selection
       when Hash
         expression_hash = BlocRecord::Utility.convert_keys(args.first)
         expression = expression_hash.map {|key, value| "#{key}=#{BlocRecord::Utility.sql_strings(value)}"}.join(" and ")
-      end      
+      end
     end
 
     sql = <<-SQL
@@ -131,19 +153,49 @@ module Selection
 
     rows = connection.execute(sql, params)
     rows_to_array(rows)
-  end 
-  
-  def order(*args)
+  end
+
+  def not(*args)
     if args.count > 1
-      order = args.join(",")
+      expression = args.shift
+      params = args
     else
-      order = args.first.to_s
+      case args.first
+      when String
+        expression = args.first
+      when Hash
+        expression_hash = BlocRecord::Utility.convert_keys(args.first)
+        expression = expression_hash.map {|key, value| "#{key} <> #{BlocRecord::Utility.sql_strings(value)}"}.join(" and ")
+      end
+    end
+
+    sql = <<-SQL
+      SELECT #{columns.join ","} FROM #{table}
+      WHERE #{expression};
+    SQL
+
+    rows = connection.execute(sql, params)
+    rows_to_array(rows)
+  end
+
+  def order(*args)
+    orders = []
+    args.each do |arg|
+      case arg
+      when String
+        orders << arg
+      when Symbol
+        orders << arg
+      when Hash
+        orders << arg.map { |key, value| "#{key} #{value}" }.join(',')
+      end
     end
 
     rows = connection.execute <<-SQL
       SELECT * FROM #{table}
-      ORDER BY #{order};
+      ORDER BY #{orders.join(',')};
     SQL
+
     rows_to_array(rows)
   end
 
@@ -164,6 +216,14 @@ module Selection
           SELECT * FROM #{table}
           INNER JOIN #{args.first} ON #{args.first}.#{table}_id = #{table}.id
         SQL
+      when Hash 
+        key = args.first.keys[0]
+        value = args.first.values[0]
+        rows = connection.execute <<-SQL
+          SELECT * FROM #{table}
+          INNER JOIN #{key} ON #{key}.#{table}_id = #{table}.id
+          INNER JOIN #{value} ON #{value}.#{key}_id = #{key}.id
+        SQL
       end
     end
 
@@ -171,6 +231,7 @@ module Selection
   end
 
   private
+
   def init_object_from_row(row)
     if row
       data = Hash[columns.zip(row)]
@@ -182,5 +243,5 @@ module Selection
     collection = BlocRecord::Collection.new
     rows.each { |row| collection << new(Hash[columns.zip(row)]) }
     collection
-  end  
+  end
 end
