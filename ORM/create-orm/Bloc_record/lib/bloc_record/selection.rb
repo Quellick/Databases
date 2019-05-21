@@ -6,6 +6,11 @@ module Selection
       raise ArgumentError.new("ID must be an integer greater than or equal to 1")
     end 
   end
+
+  def method_missing(m, *args, &block)
+    s = m.split('_')[2, m.length - 1].join("_").to_sym
+    find_by(s, args)
+  end
   
   def find(*ids)
     if ids.length == 1
